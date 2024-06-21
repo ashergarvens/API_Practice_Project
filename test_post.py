@@ -45,5 +45,6 @@ df.to_sql('videos', con=engine, if_exists='replace', index=False)
 
 # Verify the data insertion by querying the database
 with engine.connect() as connection:
-    query_result = connection.execute(db.text("SELECT * FROM videos;")).fetchall()
+    query_result = connection.execute(db.text(
+        "SELECT * FROM videos;")).fetchall()
     print(pd.DataFrame(query_result))

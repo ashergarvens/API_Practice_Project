@@ -1,45 +1,49 @@
-import tweepy
-import requests
+from googleapiclient.discovery import build
+import json
+import sqlalchemy as db
+import pandas as pd
 
-# I was not able to get the actual requests to work but I am able to verify my credientials which is a form of request
+# Replace 'YOUR_API_KEY' with your actual API key
+api_key = 'AIzaSyBTPjZm-mB9TXuje8Gc1u8ofqR-Jbx990I'
+youtube = build('youtube', 'v3', developerKey=api_key)
 
-api_key = 'wk5iSWwszGioR9afJHEM9zEw4'
-api_key_secret = 'ionn1yI4QUiwc2e3Hq1p00C6mi5lcvzYap0n1hZuIRqiSw4lyv'
-access_token = '1803160561003155456-eOZ7sJiVDfy4dJzHnl2yVDKXiw37nG'
-access_token_secret = 'wO89SkcTheDtP0ATGhpfk4FnVYBY86r1dkM8r75a9pdvR'
-bearer_token = 'AAAAAAAAAAAAAAAAAAAAAJWCuQEAAAAAgeQed0OC1yiCXDHZgBCY5JtrfSE%3DQ1bRktoMdnelC5nS8eRDRoPoV3c9Nukp6JNLftxLfda4map8on'
 
-# Authenticate to Twitter using OAuth 1.1a for user context
-auth = tweepy.OAuth1UserHandler(api_key, api_key_secret, access_token, access_token_secret)
-api = tweepy.API(auth)
+def fetch_videos(query, max_results=5):
+    request = youtube.search().list(
+        part='snippet',
+        q=query,
+        maxResults=max_results
+    )
+    response = request.execute()
+    return response['items']
 
-# Verify authentication
-try:
-    user = api.verify_credentials()
-    if user:
-        print("Authentication OK")
-    else:
-        print("Failed to authenticate")
-except Exception as e:
-    print(f"Error during authentication: {e}")
 
-# Fetch the latest tweet from the user's timeline
-try:
-    tweets = api.home_timeline(count=1)
-    latest_tweet = tweets[0].text
-    print(f"Latest tweet: {latest_tweet}")
-except Exception as e:
-    print(f"Error fetching tweets: {e}")
+# Fetch video data
+videos = fetch_videos('Python programming')
+print(json.dumps(videos, indent=4))
 
-# POST request to another endpoint using the requests library
-post_url = 'https://httpbin.org/post'
-post_data = {
-    'tweet': latest_tweet
-}
+# Extract relevant fields and create a DataFrame
+data = []
+for video in videos:
+    video_data = {
+        'videoId': video['id'].get('videoId', ''),
+        'title': video['snippet']['title'],
+        'description': video['snippet']['description'],
+        'channelTitle': video['snippet']['channelTitle'],
+        'publishedAt': video['snippet']['publishedAt']
+    }
+    data.append(video_data)
 
-try:
-    response = requests.post(post_url, data=post_data)
-    print("POST request status code:", response.status_code)
-    print("Response from the POST request:", response.json())
-except Exception as e:
-    print(f"Error during POST request: {e}")
+df = pd.DataFrame(data)
+print(df)
+
+# Create an SQLite engine
+engine = db.create_engine('sqlite:///youtube_videos.db')
+
+# Insert DataFrame into the SQLite database
+df.to_sql('videos', con=engine, if_exists='replace', index=False)
+
+# Verify the data insertion by querying the database
+with engine.connect() as connection:
+    query_result = connection.execute(db.text("SELECT * FROM videos;")).fetchall()
+    print(pd.DataFrame(query_result))

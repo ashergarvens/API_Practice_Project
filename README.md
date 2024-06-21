@@ -11,3 +11,6 @@
 * Import into a df
 * Import that into a sql file which is prenamed, be sure to change it before you run it if you want a different name.
 
+### Refactor Plan
+* I want to break all functionality into funcitons as the code base grows
+* I'll make unit tests if I have more than one file otherwise manual testing will do for now, I think
